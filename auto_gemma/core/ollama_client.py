@@ -67,10 +67,21 @@ class OllamaClient:
         exe = shutil.which("ollama")
         if exe:
             return exe
-        if platform.system() == "Windows":
-            cand = Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Ollama" / "ollama.exe"
-            if cand.exists():
-                return str(cand)
+        system = platform.system()
+        candidates: list[Path] = []
+        if system == "Windows":
+            candidates.append(
+                Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Ollama" / "ollama.exe"
+            )
+        elif system == "Darwin":
+            candidates += [
+                Path("/opt/homebrew/bin/ollama"),          # Apple Silicon brew
+                Path("/usr/local/bin/ollama"),              # Intel brew
+                Path("/Applications/Ollama.app/Contents/Resources/ollama"),
+            ]
+        for c in candidates:
+            if c.exists():
+                return str(c)
         return None
 
     def status(self) -> str:

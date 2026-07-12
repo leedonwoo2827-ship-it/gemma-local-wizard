@@ -117,15 +117,44 @@ def _install_via_setup(log: Log | None, cancel=None) -> bool:
         return False
 
 
+def _install_macos(log: Log | None, cancel=None) -> bool:
+    """macOS: Homebrew cask 우선, 없으면 수동 안내."""
+    if shutil.which("brew"):
+        _log(log, "Homebrew 로 Ollama 설치 중...")
+        try:
+            proc = subprocess.run(
+                ["brew", "install", "--cask", "ollama"],
+                capture_output=True, text=True, timeout=900,
+            )
+            if proc.returncode == 0:
+                _log(log, "brew 설치 완료.")
+                # cask 는 앱만 설치 — 서버 기동
+                subprocess.Popen(["ollama", "serve"],
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return True
+            _log(log, f"brew 설치 실패 (코드 {proc.returncode}).")
+        except (OSError, subprocess.SubprocessError) as e:
+            _log(log, f"brew 오류: {e}")
+    _log(log, "자동 설치 실패. https://ollama.com/download/mac 에서 Ollama.app 을 내려받아 설치하세요.")
+    return False
+
+
 def install_ollama(log: Log | None = None, cancel=None) -> bool:
     """Ollama 설치. 성공 시 True. (Qt 비의존 — 워커에서 호출)"""
-    if platform.system() != "Windows":
-        _log(log, "자동 설치는 Windows 만 지원합니다. https://ollama.com 에서 수동 설치하세요.")
-        return False
+    system = platform.system()
 
     if _server_up():
         _log(log, "이미 Ollama 가 실행 중입니다.")
         return True
+
+    if system == "Darwin":
+        if not _install_macos(log, cancel):
+            return False
+        return wait_for_server(20.0, cancel, log)
+
+    if system != "Windows":
+        _log(log, "이 OS 는 자동 설치를 지원하지 않습니다. https://ollama.com 에서 수동 설치하세요.")
+        return False
 
     ok = _install_via_winget(log, cancel)
     if not ok:

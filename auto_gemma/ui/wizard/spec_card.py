@@ -49,11 +49,16 @@ class SpecCard(Card):
 
     def _on_detected(self, info: SystemInfo) -> None:
         self.info = info
-        vram_txt = f"{info.vram_gb:g} GB" if info.vram_gb else "감지 안됨(통합 추정)"
+        if info.unified_memory:
+            vram_field = f"<b>통합 메모리</b> 🔒: {info.vram_gb:g} GB (RAM 공유)"
+        elif info.vram_gb:
+            vram_field = f"<b>VRAM</b> 🔒: {info.vram_gb:g} GB"
+        else:
+            vram_field = "<b>VRAM</b> 🔒: 감지 안됨(통합 추정)"
         self.hw_label.setText(
             f"<b>OS</b>: {info.os_line}   |   "
             f"<b>RAM</b>: {info.ram_gb:g} GB   |   "
-            f"<b>VRAM</b> 🔒: {vram_txt}"
+            f"{vram_field}"
         )
         self.gpu_label.setText(f"<b>GPU</b>: {info.gpu_line}")
 

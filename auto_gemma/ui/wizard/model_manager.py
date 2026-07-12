@@ -146,9 +146,14 @@ class ModelManager(Card):
     def _run_terminal(self) -> None:
         tag = self.current_tag()
         exe = OllamaClient.find_executable() or "ollama"
+        system = platform.system()
         try:
-            if platform.system() == "Windows":
+            if system == "Windows":
                 subprocess.Popen(["cmd", "/k", exe, "run", tag], creationflags=0x00000010)  # CREATE_NEW_CONSOLE
+            elif system == "Darwin":
+                # Terminal.app 에서 실행
+                script = f'tell application "Terminal" to do script "{exe} run {tag}"'
+                subprocess.Popen(["osascript", "-e", script])
             else:
                 subprocess.Popen(["x-terminal-emulator", "-e", exe, "run", tag])
         except OSError as e:

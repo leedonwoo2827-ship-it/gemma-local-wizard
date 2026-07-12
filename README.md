@@ -21,14 +21,30 @@
 - **프롬프트 템플릿**, **고급 설정**(temperature 등), **내보내기**(md/txt)
 
 ## 요구 사항
-- Windows 10/11, Python 3.10+
-- (Ollama는 앱이 자동 설치)
+- **Windows 10/11** 또는 **macOS** (Apple Silicon/Intel), Python 3.10+
+- (Ollama는 앱이 자동 설치 — Windows: winget/설치파일, macOS: Homebrew)
 
 ## 설치 & 실행
+
+### 가장 쉬운 방법 (더블클릭)
+- **Windows**: `run.bat` 더블클릭
+- **macOS**: 터미널에서 최초 1회 `chmod +x run.command` 후 `run.command` 더블클릭
+
+두 스크립트 모두 필요한 라이브러리를 자동 설치한 뒤 앱을 실행합니다.
+
+### 수동 실행
 ```bash
 pip install -r requirements.txt
 python -m auto_gemma.main
 ```
+
+## 플랫폼별 동작
+| 항목 | Windows | macOS |
+|---|---|---|
+| VRAM 감지 | nvidia-smi → 레지스트리 | Apple Silicon 통합 메모리(RAM 공유) / Intel VRAM |
+| GPU 이름 | WMI (PowerShell) | system_profiler |
+| Ollama 설치 | winget → 설치파일 | Homebrew cask |
+| 터미널 실행 | cmd | Terminal.app (osascript) |
 
 ## 모델 추천 기준 (VRAM)
 | VRAM | 추천 모델 |
