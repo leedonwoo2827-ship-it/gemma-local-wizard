@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+*.spec
+
+# venv
+.venv/
+venv/
+env/
+
+# App data (do not commit user chats / vector DBs)
+*.db
+*.sqlite
+*.sqlite3
+GemmaChat/
+auto_gemma/resources/OllamaSetup.exe
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
