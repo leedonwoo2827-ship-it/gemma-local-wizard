@@ -23,7 +23,7 @@ from auto_gemma.ui.wizard.spec_card import SpecCard
 class WizardWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f"Gemma 로컬 설치 마법사 — Auto Gemma Starter v{__version__}")
+        self.setWindowTitle("Gemma 로컬 설치 마법사")
         self.resize(920, 860)
         self._chat_window = None
 

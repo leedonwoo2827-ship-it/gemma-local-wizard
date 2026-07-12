@@ -18,7 +18,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from auto_gemma import __version__
 from auto_gemma.app.config import (
     EMBED_MODEL,
     ChatOptions,
@@ -54,7 +53,7 @@ def _now() -> str:
 class ChatWindow(QMainWindow):
     def __init__(self, default_model: str = "gemma3:4b"):
         super().__init__()
-        self.setWindowTitle(f"AI 채팅 — AutoGemmaStarter v{__version__}")
+        self.setWindowTitle("AI 채팅")
         self.resize(1080, 720)
 
         self.client = OllamaClient()
