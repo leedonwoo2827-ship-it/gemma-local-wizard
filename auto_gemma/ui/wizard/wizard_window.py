@@ -68,15 +68,22 @@ class WizardWindow(QMainWindow):
 
     # ------------------------------------------------------------------
     def _header(self) -> QWidget:
-        w = QWidget()
-        w.setObjectName("root")
+        from auto_gemma.app import theme
+        from auto_gemma.ui.widgets.atmosphere import AtmosphereWidget
+
+        w = AtmosphereWidget()
+        w.setMinimumHeight(132)
         lay = QHBoxLayout(w)
-        lay.setContentsMargins(20, 16, 20, 8)
-        title = QLabel("💎  Gemma 로컬 설치 마법사")
-        title.setStyleSheet("font-size:20px; font-weight:800;")
+        lay.setContentsMargins(28, 24, 28, 20)
+        title = QLabel("Gemma 로컬 설치 마법사")
+        title.setStyleSheet(
+            f"font-family:{theme.FONT_DISPLAY}; font-size:32px; font-weight:400;"
+            f" color:{theme.INK}; letter-spacing:-0.5px;"
+        )
         sub = QLabel("버튼 몇 번으로 내 컴퓨터에 나만의 AI 를 설치하세요")
         sub.setObjectName("muted")
         box = QVBoxLayout()
+        box.setSpacing(6)
         box.addWidget(title)
         box.addWidget(sub)
         lay.addLayout(box)

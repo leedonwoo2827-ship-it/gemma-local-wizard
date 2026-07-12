@@ -1,8 +1,6 @@
 # Auto Gemma Starter
 
-버튼 몇 번으로 내 PC에 나만의 로컬 AI(Google **Gemma**)를 설치하고, 인터넷 없이 채팅까지 할 수 있는 Windows 데스크톱 앱입니다. 엔진은 [Ollama](https://ollama.com)를 사용합니다.
-
-> 유튜브 데모(로컬 AI 설치 무료앱 Auto Gemma Starter)를 참고해 Python + PySide6로 재구현한 버전입니다.
+버튼 몇 번으로 내 PC에 나만의 로컬 AI(Google **Gemma**)를 설치하고, 인터넷 없이 채팅까지 할 수 있는 Windows/macOS 데스크톱 앱입니다. 엔진은 [Ollama](https://ollama.com)를 사용합니다.
 
 ## 주요 기능
 

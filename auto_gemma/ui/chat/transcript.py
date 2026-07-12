@@ -22,10 +22,15 @@ class MessageBubble(QFrame):
         self.role = role
         self._raw = text
         is_user = role == "user"
-        bg = theme.ACCENT if is_user else theme.CARD
-        self.setStyleSheet(
-            f"QFrame {{ background:{bg}; border-radius:12px; }}"
-        )
+        if is_user:
+            self.setStyleSheet(
+                f"QFrame {{ background:{theme.INK_PRIMARY}; border-radius:14px; }}"
+            )
+        else:
+            self.setStyleSheet(
+                f"QFrame {{ background:{theme.SURFACE_CARD};"
+                f" border:1px solid {theme.HAIRLINE}; border-radius:14px; }}"
+            )
         lay = QVBoxLayout(self)
         lay.setContentsMargins(14, 10, 14, 10)
         lay.setSpacing(4)
