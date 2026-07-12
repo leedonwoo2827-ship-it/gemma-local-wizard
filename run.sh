@@ -1,12 +1,12 @@
 #!/bin/bash
-# Linux 실행용. 최초 실행 시: chmod +x run.sh
+# Linux launcher. First time: chmod +x run.sh
 cd "$(dirname "$0")"
 
 PY=python3
 command -v $PY >/dev/null 2>&1 || PY=python
 
-echo "[Auto Gemma Starter] 필요한 라이브러리 확인 중..."
+echo "[Auto Gemma Starter] Installing required libraries..."
 $PY -m pip install -q -r requirements.txt
 
-echo "[Auto Gemma Starter] 앱을 실행합니다..."
+echo "[Auto Gemma Starter] Launching the app..."
 $PY -m auto_gemma.main
