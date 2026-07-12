@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QListWidget,
+    QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QSpinBox,
@@ -56,6 +57,10 @@ class BotManagerDialog(QDialog):
         for b in (new_btn, save_btn, del_btn):
             btns.addWidget(b)
         right.addLayout(btns)
+
+        reset_btn = QPushButton("기본 봇 복원")
+        reset_btn.clicked.connect(self._reset)
+        right.addWidget(reset_btn)
         lay.addLayout(right, 2)
 
         self._reload()
@@ -89,6 +94,16 @@ class BotManagerDialog(QDialog):
         name = self.name_edit.text().strip()
         if name:
             self.store.delete(name)
+            self._reload()
+
+    def _reset(self) -> None:
+        ok = QMessageBox.question(
+            self, "기본 봇 복원",
+            "기본 봇 세트(기본 + SQLD 6종)로 되돌립니다.\n직접 추가/수정한 봇은 사라집니다. 계속할까요?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if ok == QMessageBox.StandardButton.Yes:
+            self.store.reset_defaults()
             self._reload()
 
 
