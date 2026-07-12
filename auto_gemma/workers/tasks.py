@@ -103,6 +103,49 @@ def embed_query_task(query: str, embed_model: str, cancel_event=None, signals=No
     return OllamaClient().embed(embed_model, [query])[0]
 
 
+def ingest_documents_batch_task(store: VectorStore, files: list[str], embed_model: str,
+                                cancel_event=None, signals=None):
+    """여러 문서를 하나의 워커에서 순차 처리. 파일 단위 진행률/오류 집계."""
+    import os
+    import uuid
+
+    client = OllamaClient()
+    # 임베딩 모델 1회 확보
+    if not client.has_model(embed_model):
+        if signals:
+            signals.message.emit(f"임베딩 모델({embed_model}) 다운로드 중...")
+        for _ in client.pull(embed_model):
+            if cancel_event and cancel_event.is_set():
+                return "cancelled"
+
+    total = len(files)
+    ok, failed, total_chunks = 0, 0, 0
+    for idx, path in enumerate(files, 1):
+        if cancel_event and cancel_event.is_set():
+            break
+        source = os.path.basename(path)
+        if signals:
+            signals.message.emit(f"[{idx}/{total}] {source} 처리 중...")
+            signals.progress.emit({"completed": idx, "total": total})
+        try:
+            text = loaders.load_text(path)
+            chunks = chunker.chunk_text(text)
+            if not chunks:
+                failed += 1
+                continue
+            embeddings: list[list[float]] = []
+            for i in range(0, len(chunks), 16):
+                if cancel_event and cancel_event.is_set():
+                    break
+                embeddings.extend(client.embed(embed_model, chunks[i:i + 16]))
+            store.add_document(uuid.uuid4().hex[:12], source, chunks, embeddings, embed_model)
+            ok += 1
+            total_chunks += len(chunks)
+        except Exception:  # noqa: BLE001 — 개별 파일 실패는 건너뛰고 계속
+            failed += 1
+    return {"ok": ok, "failed": failed, "total": total, "chunks": total_chunks}
+
+
 def set_models_dir_task(path: str, cancel_event=None, signals=None):
     def log(m):
         if signals:

@@ -43,7 +43,7 @@ from auto_gemma.ui.chat.sidebar import Sidebar
 from auto_gemma.ui.chat.transcript import TranscriptView
 from auto_gemma.ui.widgets.common import download_pool, general_pool
 from auto_gemma.workers.base import CancellableWorker
-from auto_gemma.workers.tasks import chat_task, embed_query_task, ingest_document_task
+from auto_gemma.workers.tasks import chat_task, embed_query_task, ingest_documents_batch_task
 
 
 def _now() -> str:
@@ -98,7 +98,7 @@ class ChatWindow(QMainWindow):
         self.sidebar.conversations.selected.connect(self.load_conversation)
         self.sidebar.conversations.rename_requested.connect(self._rename_conv)
         self.sidebar.conversations.delete_requested.connect(self._delete_conv)
-        self.sidebar.library.ingest_requested.connect(self._ingest_doc)
+        self.sidebar.library.ingest_requested.connect(self._ingest_docs)
         self.sidebar.library.docs_changed.connect(self._update_rag_label)
 
         self.composer.send_requested.connect(self.send_message)
@@ -371,20 +371,40 @@ class ChatWindow(QMainWindow):
             self._chat_worker.cancel()
 
     # ------------------------------------------------------------------ RAG
-    def _ingest_doc(self, path: str) -> None:
-        import uuid
-        source = path.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
-        doc_id = uuid.uuid4().hex[:12]
-        self.sidebar.library.set_busy(True, f"'{source}' 처리 중...")
-        worker = CancellableWorker(ingest_document_task, self.vec_store, doc_id, source, path, EMBED_MODEL)
-        worker.signals.message.connect(lambda m: self.sidebar.library.set_busy(True, m))
+    def _ingest_docs(self, paths: list) -> None:
+        if not paths:
+            return
+        lib = self.sidebar.library
+        lib.set_busy(True, f"{len(paths)}개 문서 처리 준비 중...")
+        worker = CancellableWorker(
+            ingest_documents_batch_task, self.vec_store, list(paths), EMBED_MODEL
+        )
+        worker.signals.message.connect(lib.status.setText)
+        worker.signals.progress.connect(self._on_ingest_progress)
         worker.signals.finished.connect(self._on_ingest_done)
-        worker.signals.error.connect(lambda e: self.sidebar.library.set_busy(False, f"오류: {e.splitlines()[-1] if e else ''}"))
+        worker.signals.error.connect(
+            lambda e: lib.set_busy(False, f"오류: {e.splitlines()[-1] if e else ''}")
+        )
         download_pool().start(worker)
 
+    def _on_ingest_progress(self, prog: dict) -> None:
+        total = prog.get("total")
+        completed = prog.get("completed")
+        if total:
+            self.sidebar.library.progress.setRange(0, total)
+            self.sidebar.library.progress.setValue(completed or 0)
+
     def _on_ingest_done(self, result) -> None:
-        self.sidebar.library.set_busy(False, "✅ 문서 추가 완료!")
-        self.sidebar.library.reload()
+        lib = self.sidebar.library
+        if isinstance(result, dict):
+            msg = f"✅ 완료: {result.get('ok', 0)}개 추가"
+            if result.get("failed"):
+                msg += f" · 실패 {result['failed']}개"
+            msg += f" · 총 {result.get('chunks', 0)}조각"
+        else:
+            msg = "완료"
+        lib.set_busy(False, msg)
+        lib.reload()
         self.rag_check.setChecked(True)
 
     # ------------------------------------------------------------------ 다이얼로그

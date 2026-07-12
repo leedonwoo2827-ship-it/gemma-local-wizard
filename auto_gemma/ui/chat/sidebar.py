@@ -100,7 +100,7 @@ class ConversationList(QWidget):
 class KnowledgeLibrary(QWidget):
     """지식 도서관(RAG): 문서 추가/삭제 목록."""
 
-    ingest_requested = Signal(str)   # 파일 경로
+    ingest_requested = Signal(list)  # 파일 경로 리스트
     docs_changed = Signal()
 
     def __init__(self, store: VectorStore, parent: QWidget | None = None):
@@ -110,10 +110,15 @@ class KnowledgeLibrary(QWidget):
         lay.setContentsMargins(6, 6, 6, 6)
 
         lay.addWidget(QLabel("업로드한 문서로 답변 근거를 만듭니다 (RAG)."))
-        add_btn = QPushButton("+ 문서 추가")
+        btn_row = QHBoxLayout()
+        add_btn = QPushButton("+ 파일 추가")
         add_btn.setObjectName("success")
         add_btn.clicked.connect(self._add)
-        lay.addWidget(add_btn)
+        folder_btn = QPushButton("+ 폴더 추가")
+        folder_btn.clicked.connect(self._add_folder)
+        btn_row.addWidget(add_btn)
+        btn_row.addWidget(folder_btn)
+        lay.addLayout(btn_row)
 
         self.progress = QProgressBar()
         self.progress.hide()
@@ -143,9 +148,23 @@ class KnowledgeLibrary(QWidget):
 
     def _add(self) -> None:
         exts = " ".join(f"*{e}" for e in sorted(SUPPORTED))
-        path, _ = QFileDialog.getOpenFileName(self, "문서 선택", "", f"문서 ({exts})")
-        if path:
-            self.ingest_requested.emit(path)
+        paths, _ = QFileDialog.getOpenFileNames(self, "문서 선택 (여러 개 가능)", "", f"문서 ({exts})")
+        if paths:
+            self.ingest_requested.emit(paths)
+
+    def _add_folder(self) -> None:
+        from pathlib import Path
+        d = QFileDialog.getExistingDirectory(self, "폴더 선택 (하위 문서 모두 추가)")
+        if not d:
+            return
+        files = [
+            str(p) for p in sorted(Path(d).rglob("*"))
+            if p.is_file() and p.suffix.lower() in SUPPORTED
+        ]
+        if files:
+            self.ingest_requested.emit(files)
+        else:
+            self.set_busy(False, "폴더에서 지원 문서를 찾지 못했습니다.")
 
     def _delete(self) -> None:
         it = self.list.currentItem()
