@@ -155,7 +155,14 @@ class ModelManager(Card):
                 script = f'tell application "Terminal" to do script "{exe} run {tag}"'
                 subprocess.Popen(["osascript", "-e", script])
             else:
-                subprocess.Popen(["x-terminal-emulator", "-e", exe, "run", tag])
+                # Linux: 사용 가능한 터미널을 순차 시도
+                import shutil as _sh
+                for term in ("x-terminal-emulator", "gnome-terminal", "konsole", "xterm"):
+                    if _sh.which(term):
+                        subprocess.Popen([term, "-e", exe, "run", tag])
+                        break
+                else:
+                    self.status_label.setText("터미널을 찾지 못했습니다. 직접 'ollama run' 을 실행하세요.")
         except OSError as e:
             self.status_label.setText(f"터미널 실행 실패: {e}")
 

@@ -88,10 +88,26 @@ class WizardWindow(QMainWindow):
         box.addWidget(sub)
         lay.addLayout(box)
         lay.addStretch(1)
+
+        right = QVBoxLayout()
+        right.setSpacing(8)
+        top_row = QHBoxLayout()
+        top_row.addStretch(1)
+        settings_btn = QPushButton("⚙ 설정")
+        settings_btn.clicked.connect(self.open_settings)
         ver = QLabel(f"v{__version__}")
         ver.setObjectName("badge")
-        lay.addWidget(ver, alignment=Qt.AlignmentFlag.AlignTop)
+        top_row.addWidget(settings_btn)
+        top_row.addWidget(ver)
+        right.addLayout(top_row)
+        right.addStretch(1)
+        lay.addLayout(right)
         return w
+
+    def open_settings(self) -> None:
+        from auto_gemma.ui.wizard.settings_dialog import SettingsDialog
+        SettingsDialog(self).exec()
+        self.ollama_section.refresh()
 
     def _chat_card(self) -> Card:
         card = Card("4. AI 채팅 (앱 내장 · Docker 불필요)")

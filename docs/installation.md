@@ -24,11 +24,27 @@ python -m auto_gemma.main
    ```
 2. `run.command` 더블클릭 (또는 터미널에서 `./run.command`)
 
-수동 실행:
+### Linux
+```bash
+chmod +x run.sh   # 최초 1회
+./run.sh
+```
+
+수동 실행(공통):
 ```bash
 pip3 install -r requirements.txt
 python3 -m auto_gemma.main
 ```
+
+## 저장 위치 변경 (C: 용량 부족 시)
+
+모델 파일은 용량이 큽니다(4B≈3.3GB, 12B≈8GB, 27B≈17GB). C: 드라이브 여유가 적으면
+헤더의 **⚙ 설정** 버튼에서 저장 위치를 다른 드라이브(예: `D:\AutoGemma\models`)로 지정하세요.
+
+- **모델 저장 위치**: Ollama 의 `OLLAMA_MODELS` 환경변수를 설정합니다(Windows 는 `setx` 로 영구 등록).
+  변경 시 Ollama 서버를 재시작해 즉시 반영합니다.
+- **데이터(대화/지식도서관) 위치**: 원하는 폴더로 지정 가능.
+- **모델을 내려받기 전에** 지정하는 것을 권장합니다. 이미 받은 모델은 새 위치로 자동 이동되지 않습니다.
 
 ## 2. Ollama 설치 (앱 내부 버튼)
 

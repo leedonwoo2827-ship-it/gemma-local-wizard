@@ -101,3 +101,10 @@ def ingest_document_task(store: VectorStore, doc_id: str, source: str, path: str
 
 def embed_query_task(query: str, embed_model: str, cancel_event=None, signals=None):
     return OllamaClient().embed(embed_model, [query])[0]
+
+
+def set_models_dir_task(path: str, cancel_event=None, signals=None):
+    def log(m):
+        if signals:
+            signals.message.emit(m)
+    return installer.set_models_location(path, restart=True, log=log)

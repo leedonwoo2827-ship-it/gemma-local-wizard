@@ -48,6 +48,59 @@ def wait_for_server(max_wait: float = 30.0, cancel=None, log: Log | None = None)
     return False
 
 
+def set_models_location(path: str, restart: bool = True, log: Log | None = None) -> bool:
+    """Ollama 모델 저장 위치(OLLAMA_MODELS)를 변경한다.
+
+    - 폴더 생성 + settings.json 저장 + 현재 프로세스 환경변수 설정
+    - Windows: setx 로 사용자 환경변수 영구 등록
+    - restart=True 면 실행 중인 Ollama 서버를 재시작해 즉시 반영
+    """
+    import os as _os
+
+    from auto_gemma.app.config import update_setting
+
+    p = Path(path)
+    try:
+        p.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        _log(log, f"폴더 생성 실패: {e}")
+        return False
+
+    update_setting("models_dir", str(p))
+    _os.environ["OLLAMA_MODELS"] = str(p)
+
+    system = platform.system()
+    if system == "Windows":
+        try:
+            subprocess.run(["setx", "OLLAMA_MODELS", str(p)],
+                           capture_output=True, text=True, creationflags=_CREATE_NO_WINDOW)
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+    if restart and _server_up():
+        _log(log, "새 저장 위치를 적용하려 Ollama 를 재시작합니다...")
+        _restart_ollama(log)
+    _log(log, f"모델 저장 위치: {p}")
+    return True
+
+
+def _restart_ollama(log: Log | None = None) -> None:
+    system = platform.system()
+    try:
+        if system == "Windows":
+            for image in ("ollama app.exe", "ollama.exe"):
+                subprocess.run(["taskkill", "/F", "/IM", image],
+                               capture_output=True, creationflags=_CREATE_NO_WINDOW)
+        else:
+            subprocess.run(["pkill", "-f", "ollama"], capture_output=True)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    # 우리가 직접 서버 재기동 (os.environ 상속 → 새 OLLAMA_MODELS 적용)
+    from auto_gemma.core.ollama_client import OllamaClient
+    OllamaClient().start_server()
+    wait_for_server(15.0, None, log)
+
+
 def _winget_available() -> bool:
     return shutil.which("winget") is not None
 
@@ -139,6 +192,30 @@ def _install_macos(log: Log | None, cancel=None) -> bool:
     return False
 
 
+def _install_linux(log: Log | None, cancel=None) -> bool:
+    """Linux: 공식 설치 스크립트 (curl -fsSL https://ollama.com/install.sh | sh)."""
+    if not shutil.which("curl"):
+        _log(log, "curl 이 없습니다. https://ollama.com/download/linux 를 참고해 수동 설치하세요.")
+        return False
+    _log(log, "공식 스크립트로 Ollama 설치 중... (sudo 암호를 물어볼 수 있어요)")
+    try:
+        proc = subprocess.run(
+            "curl -fsSL https://ollama.com/install.sh | sh",
+            shell=True, capture_output=True, text=True, timeout=900,
+        )
+        if proc.returncode == 0:
+            _log(log, "설치 스크립트 완료.")
+            # systemd 서비스가 아니면 직접 기동
+            if shutil.which("ollama"):
+                subprocess.Popen(["ollama", "serve"],
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return True
+        _log(log, f"설치 실패 (코드 {proc.returncode}).")
+    except (OSError, subprocess.SubprocessError) as e:
+        _log(log, f"설치 오류: {e}")
+    return False
+
+
 def install_ollama(log: Log | None = None, cancel=None) -> bool:
     """Ollama 설치. 성공 시 True. (Qt 비의존 — 워커에서 호출)"""
     system = platform.system()
@@ -149,6 +226,11 @@ def install_ollama(log: Log | None = None, cancel=None) -> bool:
 
     if system == "Darwin":
         if not _install_macos(log, cancel):
+            return False
+        return wait_for_server(20.0, cancel, log)
+
+    if system == "Linux":
+        if not _install_linux(log, cancel):
             return False
         return wait_for_server(20.0, cancel, log)
 

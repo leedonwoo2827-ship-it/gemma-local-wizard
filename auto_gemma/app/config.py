@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -19,6 +20,47 @@ EMBED_MODEL = "nomic-embed-text"
 
 
 # ---------------------------------------------------------------------------
+# 설정 (settings.json — 모델/데이터 저장 위치 등)
+# ---------------------------------------------------------------------------
+def settings_path() -> Path:
+    p = Path.home() / ".auto_gemma"
+    p.mkdir(parents=True, exist_ok=True)
+    return p / "settings.json"
+
+
+def load_settings() -> dict:
+    try:
+        return json.loads(settings_path().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def save_settings(data: dict) -> None:
+    settings_path().write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def update_setting(key: str, value) -> None:
+    s = load_settings()
+    if value is None:
+        s.pop(key, None)
+    else:
+        s[key] = value
+    save_settings(s)
+
+
+def get_models_dir() -> str | None:
+    """Ollama 모델 저장 위치 (OLLAMA_MODELS). 미설정이면 None(기본 위치 사용)."""
+    return load_settings().get("models_dir")
+
+
+def apply_ollama_env() -> None:
+    """저장된 모델 위치를 현재 프로세스 환경변수에 반영. 앱 시작 시 호출."""
+    md = get_models_dir()
+    if md:
+        os.environ["OLLAMA_MODELS"] = md
+
+
+# ---------------------------------------------------------------------------
 # 경로 (한글 "문서" 폴더 로컬라이즈 대응 — QStandardPaths 사용)
 # ---------------------------------------------------------------------------
 def documents_dir() -> Path:
@@ -29,8 +71,9 @@ def documents_dir() -> Path:
 
 
 def data_dir() -> Path:
-    """대화·지식도서관 데이터 저장 루트: <문서>/GemmaChat"""
-    d = documents_dir() / "GemmaChat"
+    """대화·지식도서관 데이터 저장 루트. 설정에 data_dir 이 있으면 그 위치, 없으면 <문서>/GemmaChat"""
+    custom = load_settings().get("data_dir")
+    d = Path(custom) if custom else (documents_dir() / "GemmaChat")
     d.mkdir(parents=True, exist_ok=True)
     return d
 

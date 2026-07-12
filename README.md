@@ -1,12 +1,13 @@
 # Auto Gemma Starter
 
-버튼 몇 번으로 내 PC에 나만의 로컬 AI(Google **Gemma**)를 설치하고, 인터넷 없이 채팅까지 할 수 있는 Windows/macOS 데스크톱 앱입니다. 엔진은 [Ollama](https://ollama.com)를 사용합니다.
+버튼 몇 번으로 내 PC에 나만의 로컬 AI(Google **Gemma**)를 설치하고, 인터넷 없이 채팅까지 할 수 있는 **로컬 AI 데스크톱 GUI 앱**입니다. **Windows · macOS · Linux** 모두 지원하며, 엔진은 [Ollama](https://ollama.com)를 사용합니다.
 
 ## 설치 & 실행
 
 ### 가장 쉬운 방법 (더블클릭)
 - **Windows**: `run.bat` 더블클릭
-- **macOS**: 터미널에서 최초 1회 `chmod +x run.command` 실행 후 `run.command` 더블클릭
+- **macOS**: 최초 1회 `chmod +x run.command` 후 `run.command` 더블클릭
+- **Linux**: 최초 1회 `chmod +x run.sh` 후 `./run.sh` 실행
 
 필요한 라이브러리를 자동 설치한 뒤 앱을 실행합니다. Ollama·모델은 앱 안에서 버튼으로 설치합니다.
 
@@ -15,7 +16,7 @@
 pip install -r requirements.txt
 python -m auto_gemma.main
 ```
-> Python 3.10+ 필요. Windows 10/11 또는 macOS(Apple Silicon/Intel).
+> Python 3.10+ 필요. Windows 10/11 · macOS(Apple Silicon/Intel) · Linux.
 
 ## 주요 기능
 - **설치 마법사**: 사양 감지(OS/RAM/VRAM/GPU) → VRAM 기준 추천 모델 → Ollama·Gemma 자동 설치/관리
