@@ -2,69 +2,29 @@
 
 버튼 몇 번으로 내 PC에 나만의 로컬 AI(Google **Gemma**)를 설치하고, 인터넷 없이 채팅까지 할 수 있는 Windows/macOS 데스크톱 앱입니다. 엔진은 [Ollama](https://ollama.com)를 사용합니다.
 
-## 주요 기능
-
-### 1) 설치 마법사
-- **내 컴퓨터 사양 감지**: OS / RAM / VRAM / GPU 자동 인식
-- **VRAM 기준 추천 모델**: 예) VRAM 8GB → `gemma3:4b` (GPU 가속), 제한 요인 표시
-- **Ollama 자동 설치**: winget → 설치 파일 폴백
-- **Gemma 모델 관리**: 설치 / 업데이트 / 삭제 / 터미널 실행 (다운로드 진행률 표시)
-
-### 2) AI 채팅 (앱 내장 · Docker 불필요)
-- 로컬 Gemma와 **스트리밍 대화** (전송 / 중지 / 재생성)
-- **지식 도서관 (RAG)**: txt·md·pdf·docx 업로드 → 근거 기반 답변
-- **봇 관리**: 커스텀 시스템 프롬프트/페르소나
-- **이미지 입력**: 멀티모달 (gemma3 4B/12B/27B)
-- **대화 관리**: 새 대화 / 검색 / 이름변경 / 삭제, 자동 저장
-- **프롬프트 템플릿**, **고급 설정**(temperature 등), **내보내기**(md/txt)
-
-## 요구 사항
-- **Windows 10/11** 또는 **macOS** (Apple Silicon/Intel), Python 3.10+
-- (Ollama는 앱이 자동 설치 — Windows: winget/설치파일, macOS: Homebrew)
-
 ## 설치 & 실행
 
 ### 가장 쉬운 방법 (더블클릭)
 - **Windows**: `run.bat` 더블클릭
-- **macOS**: 터미널에서 최초 1회 `chmod +x run.command` 후 `run.command` 더블클릭
+- **macOS**: 터미널에서 최초 1회 `chmod +x run.command` 실행 후 `run.command` 더블클릭
 
-두 스크립트 모두 필요한 라이브러리를 자동 설치한 뒤 앱을 실행합니다.
+필요한 라이브러리를 자동 설치한 뒤 앱을 실행합니다. Ollama·모델은 앱 안에서 버튼으로 설치합니다.
 
 ### 수동 실행
 ```bash
 pip install -r requirements.txt
 python -m auto_gemma.main
 ```
+> Python 3.10+ 필요. Windows 10/11 또는 macOS(Apple Silicon/Intel).
 
-## 플랫폼별 동작
-| 항목 | Windows | macOS |
-|---|---|---|
-| VRAM 감지 | nvidia-smi → 레지스트리 | Apple Silicon 통합 메모리(RAM 공유) / Intel VRAM |
-| GPU 이름 | WMI (PowerShell) | system_profiler |
-| Ollama 설치 | winget → 설치파일 | Homebrew cask |
-| 터미널 실행 | cmd | Terminal.app (osascript) |
+## 주요 기능
+- **설치 마법사**: 사양 감지(OS/RAM/VRAM/GPU) → VRAM 기준 추천 모델 → Ollama·Gemma 자동 설치/관리
+- **AI 채팅**: 스트리밍 대화, 지식 도서관(RAG), 봇 관리, 이미지 입력, 대화 저장/검색, 내보내기
 
-## 모델 추천 기준 (VRAM)
-| VRAM | 추천 모델 |
-|---|---|
-| < 4GB / 통합 | gemma3:1b |
-| 4–11GB | gemma3:4b |
-| 12–23GB | gemma3:12b |
-| ≥ 24GB | gemma3:27b |
-
-RAM이 부족하면 한 단계 낮은 모델을 추천하고 "제한 요인: RAM"으로 표시합니다.
-
-## 데이터 저장 위치
-대화/지식도서관 데이터는 `내 문서/GemmaChat/` 아래에 저장됩니다.
-
-## 프로젝트 구조
-```
-auto_gemma/
-├─ core/         # 순수 로직 (Qt 비의존): ollama_client, installer, system_info, recommend, rag, persistence
-├─ workers/      # QRunnable 워커 (core ↔ Qt 신호 브리지)
-├─ ui/           # PySide6 UI (wizard, chat, widgets)
-└─ app/          # config, theme
-```
+## 문서 (docs/)
+- [설치 가이드](docs/installation.md) — 플랫폼별 상세 설치, 문제 해결
+- [기능 안내](docs/features.md) — 마법사·채팅 전체 기능, 모델 추천 기준, 데이터 저장 위치
+- [아키텍처](docs/architecture.md) — 프로젝트 구조, 플랫폼별 동작, 개발 메모
 
 ## 라이선스
 MIT
