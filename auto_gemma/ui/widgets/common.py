@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QThreadPool
+from PySide6.QtGui import QCursor, QGuiApplication
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -10,6 +11,22 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+
+def center_on_active_screen(widget: QWidget) -> None:
+    """위젯을 (마우스가 있는) 화면 중앙에 배치.
+
+    다중 모니터 환경에서 창이 보이지 않는(화면 밖) 위치에 생성되는 문제를 방지한다.
+    show() 이후 호출해야 프레임 크기가 반영된다.
+    """
+    screen = QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
+    if screen is None:
+        return
+    geo = screen.availableGeometry()
+    frame = widget.frameGeometry()
+    frame.moveCenter(geo.center())
+    widget.move(frame.topLeft())
+
 
 # 다운로드 전용 스레드풀 (채팅/임베딩과 분리해 pull 이 채팅을 막지 않도록)
 _download_pool: QThreadPool | None = None

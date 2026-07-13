@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 
 from auto_gemma import __version__
 from auto_gemma.core.recommend import Recommendation
-from auto_gemma.ui.widgets.common import Card, muted
+from auto_gemma.ui.widgets.common import Card, center_on_active_screen, muted
 from auto_gemma.ui.wizard.model_manager import ModelManager
 from auto_gemma.ui.wizard.ollama_section import OllamaSection
 from auto_gemma.ui.wizard.spec_card import SpecCard
@@ -131,5 +131,6 @@ class WizardWindow(QMainWindow):
             default_model = self.model_manager.current_tag()
             self._chat_window = ChatWindow(default_model=default_model)
         self._chat_window.show()
+        center_on_active_screen(self._chat_window)  # 화면 밖 생성 방지
         self._chat_window.raise_()
         self._chat_window.activateWindow()

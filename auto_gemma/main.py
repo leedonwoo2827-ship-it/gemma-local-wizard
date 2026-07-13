@@ -9,22 +9,22 @@ import sys
 from PySide6.QtWidgets import QApplication
 
 from auto_gemma.app import config, theme
+from auto_gemma.ui.widgets.common import center_on_active_screen
 from auto_gemma.ui.wizard.wizard_window import WizardWindow
 
 
 def main() -> int:
     app = QApplication(sys.argv)
-    app.setApplicationName("AutoGemmaStarter")
-    app.setOrganizationName("AutoGemmaStarter")
-    # Qt(Windows)가 창 제목 뒤에 applicationDisplayName 을 자동으로 덧붙이는데,
-    # 미설정 시 applicationName 으로 폴백되어 " - AutoGemmaStarter" 가 붙는다.
-    # 빈 문자열로 명시해 자동 덧붙임을 차단한다.
+    app.setApplicationName("Gemma")
+    app.setOrganizationName("Gemma")
+    # Qt(Windows)가 창 제목 뒤에 applicationDisplayName 을 자동으로 덧붙이는 것을 차단.
     app.setApplicationDisplayName("")
     config.apply_ollama_env()  # 저장된 모델 위치(OLLAMA_MODELS)를 환경에 반영
     theme.apply(app)
 
     window = WizardWindow()
     window.show()
+    center_on_active_screen(window)  # 다중 모니터에서 화면 밖 생성 방지
     return app.exec()
 
 
