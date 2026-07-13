@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from auto_gemma.app.config import (
+    DEFAULT_MODEL,
     EMBED_MODEL,
     ChatOptions,
     data_dir,
@@ -174,16 +175,29 @@ class ChatWindow(QMainWindow):
         # 임베딩 모델은 채팅 목록에서 제외
         chat_models = [m for m in installed if EMBED_MODEL not in m]
         if not chat_models:
-            self.model_combo.addItem(self._default_model)
+            self.model_combo.addItem(DEFAULT_MODEL)
         else:
             self.model_combo.addItems(chat_models)
-            if self._default_model in chat_models:
-                self.model_combo.setCurrentText(self._default_model)
+            self.model_combo.setCurrentText(self._preferred_model(chat_models))
         self.model_combo.blockSignals(False)
         self._on_model_changed(self.model_combo.currentText())
 
     def current_model(self) -> str:
         return self.model_combo.currentText()
+
+    def _preferred_model(self, models: list[str]) -> str:
+        """기본 선호: gemma3:12b → (그 외) 12B 아무거나 → 마법사 추천 → 첫 모델.
+
+        요약 품질을 위해 12B 급을 기본으로 잡는다.
+        """
+        if DEFAULT_MODEL in models:
+            return DEFAULT_MODEL
+        twelve = [m for m in models if "12b" in m.lower()]
+        if twelve:
+            return twelve[0]
+        if self._default_model in models:
+            return self._default_model
+        return models[0]
 
     def _on_model_changed(self, tag: str) -> None:
         spec = spec_for(tag)
