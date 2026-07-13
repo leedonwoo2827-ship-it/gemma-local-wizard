@@ -9,7 +9,7 @@ import sys
 from PySide6.QtWidgets import QApplication
 
 from auto_gemma.app import config, theme
-from auto_gemma.ui.main_window import MainWindow
+from auto_gemma.ui.wizard.wizard_window import WizardWindow
 
 
 def main() -> int:
@@ -23,7 +23,7 @@ def main() -> int:
     config.apply_ollama_env()  # 저장된 모델 위치(OLLAMA_MODELS)를 환경에 반영
     theme.apply(app)
 
-    window = MainWindow()
+    window = WizardWindow()
     window.show()
     return app.exec()
 

@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import base64
 import json
 import os
 import platform
@@ -146,6 +147,14 @@ class OllamaClient:
                 except json.JSONDecodeError:
                     continue
 
+    def delete(self, model: str) -> None:
+        try:
+            # httpx 의 .delete() 는 body 를 막으므로 request 사용
+            r = self._client.request("DELETE", "/api/delete", json={"model": model})
+            r.raise_for_status()
+        except httpx.HTTPError as e:
+            raise OllamaError(f"모델 삭제 실패: {e}") from e
+
     # ------------------------------------------------------------------ 채팅
     def chat(self, model: str, messages: list[dict], options: dict | None = None) -> Iterator[str]:
         """스트리밍 채팅. content 델타를 yield. 호출자가 break 하면 생성 중단.
@@ -173,3 +182,25 @@ class OllamaClient:
                     yield delta
                 if obj.get("done"):
                     break
+
+    # --------------------------------------------------------------- 임베딩
+    def embed(self, model: str, texts: list[str]) -> list[list[float]]:
+        """배치 임베딩. 신형 /api/embed 우선, 구형 /api/embeddings 폴백."""
+        try:
+            r = self._client.post("/api/embed", json={"model": model, "input": texts}, timeout=120.0)
+            if r.status_code == 200:
+                return r.json().get("embeddings", [])
+        except httpx.HTTPError:
+            pass
+        # 폴백: 한 건씩
+        out = []
+        for t in texts:
+            r = self._client.post("/api/embeddings", json={"model": model, "prompt": t}, timeout=120.0)
+            r.raise_for_status()
+            out.append(r.json().get("embedding", []))
+        return out
+
+
+def encode_image(path: str | Path) -> str:
+    """이미지 파일 → base64 문자열 (data URL 프리픽스 없이)."""
+    return base64.b64encode(Path(path).read_bytes()).decode("ascii")
