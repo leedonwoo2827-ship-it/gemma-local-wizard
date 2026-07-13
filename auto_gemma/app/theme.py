@@ -56,8 +56,8 @@ GREEN_HOVER = "#15803d"
 RED = ERROR
 YELLOW = WARN
 
-FONT_BODY = "'Malgun Gothic', 'Inter', 'Segoe UI', sans-serif"
-FONT_DISPLAY = "'Nanum Myeongjo', 'Batang', 'EB Garamond', 'Georgia', serif"
+FONT_BODY = "'Noto Sans KR', 'Malgun Gothic', 'Segoe UI', sans-serif"
+FONT_DISPLAY = "'Noto Serif KR', 'Nanum Myeongjo', 'Georgia', serif"
 
 QSS = f"""
 * {{

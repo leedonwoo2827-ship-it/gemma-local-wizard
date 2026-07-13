@@ -25,7 +25,11 @@ def center_on_active_screen(widget: QWidget) -> None:
     geo = screen.availableGeometry()
     frame = widget.frameGeometry()
     frame.moveCenter(geo.center())
-    widget.move(frame.topLeft())
+    top_left = frame.topLeft()
+    # 창이 화면보다 크면 중앙 정렬 시 위/왼쪽이 잘린다 → 최소 화면 안쪽으로 클램프
+    top_left.setX(max(geo.left(), top_left.x()))
+    top_left.setY(max(geo.top(), top_left.y()))
+    widget.move(top_left)
 
 
 # 다운로드 전용 스레드풀 (채팅/임베딩과 분리해 pull 이 채팅을 막지 않도록)

@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -24,7 +25,7 @@ class WizardWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Gemma 로컬 설치 마법사")
-        self.resize(920, 860)
+        self.resize(920, 760)
         self._chat_window = None
 
         root = QWidget()
@@ -114,8 +115,13 @@ class WizardWindow(QMainWindow):
         card.add(muted("모델 설치가 끝나면 앱에 내장된 채팅으로 바로 로컬 AI 와 대화할 수 있어요."))
         self.open_chat_btn = QPushButton("채팅 열기")
         self.open_chat_btn.setObjectName("primary")
+        self.open_chat_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self.open_chat_btn.setMinimumWidth(160)
         self.open_chat_btn.clicked.connect(self.open_chat)
-        card.add(self.open_chat_btn)
+        row = QHBoxLayout()
+        row.addWidget(self.open_chat_btn)
+        row.addStretch(1)
+        card.add_layout(row)
         return card
 
     # ------------------------------------------------------------------
