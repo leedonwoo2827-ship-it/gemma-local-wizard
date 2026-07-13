@@ -15,8 +15,8 @@ from PySide6.QtCore import QStandardPaths
 APP_NAME = "AutoGemmaStarter"
 OLLAMA_HOST = "http://127.0.0.1:11434"
 
-# RAG 임베딩 모델 (자동 pull)
-EMBED_MODEL = "nomic-embed-text"
+# 기본 채팅/요약 모델 (없으면 UI 에서 안내)
+DEFAULT_MODEL = "gemma3:4b"
 
 
 # ---------------------------------------------------------------------------
@@ -82,14 +82,6 @@ def conversations_dir() -> Path:
     d = data_dir() / "conversations"
     d.mkdir(parents=True, exist_ok=True)
     return d
-
-
-def rag_db_path() -> Path:
-    return data_dir() / "knowledge.db"
-
-
-def bots_path() -> Path:
-    return data_dir() / "bots.json"
 
 
 def resources_dir() -> Path:

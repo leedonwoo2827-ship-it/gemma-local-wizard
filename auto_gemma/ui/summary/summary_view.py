@@ -1,0 +1,247 @@
+"""PDF 요약 위젯 — 텍스트 복사 가능한 PDF 를 원문의 10% / 5% 분량으로 요약.
+
+모델 선택은 상위 MainWindow 상단바에서 받아온다(model_getter).
+"""
+from __future__ import annotations
+
+import os
+from collections import deque
+from typing import Callable
+
+from PySide6.QtCore import QTimer
+from PySide6.QtGui import QTextCursor
+from PySide6.QtWidgets import (
+    QApplication,
+    QButtonGroup,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QRadioButton,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
+
+from auto_gemma.app.config import ChatOptions
+from auto_gemma.core.summarizer import RATIOS
+from auto_gemma.ui.widgets.common import general_pool
+from auto_gemma.workers.base import CancellableWorker
+from auto_gemma.workers.tasks import summarize_task
+
+_FILE_FILTER = "문서 (*.pdf *.txt *.md);;PDF (*.pdf);;텍스트 (*.txt *.md)"
+
+
+class SummaryView(QWidget):
+    def __init__(self, model_getter: Callable[[], str], parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("root")
+        self._model_getter = model_getter
+
+        self._path: str | None = None
+        self._worker: CancellableWorker | None = None
+        self._pending: deque = deque()
+        self._flush_timer = QTimer(self)
+        self._flush_timer.setInterval(40)
+        self._flush_timer.timeout.connect(self._flush_tokens)
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(12, 12, 12, 12)
+        root.setSpacing(10)
+
+        # --- 파일 선택 줄
+        file_row = QHBoxLayout()
+        self.pick_btn = QPushButton("PDF 선택")
+        self.pick_btn.clicked.connect(self._pick_file)
+        self.file_label = QLabel("선택된 파일 없음")
+        self.file_label.setObjectName("muted")
+        file_row.addWidget(self.pick_btn)
+        file_row.addWidget(self.file_label, 1)
+        root.addLayout(file_row)
+
+        # --- 비율 + 실행 줄
+        ctrl = QHBoxLayout()
+        ctrl.addWidget(QLabel("요약 분량:"))
+        self.ratio_group = QButtonGroup(self)
+        self.r10 = QRadioButton("10%")
+        self.r5 = QRadioButton("5%")
+        self.r10.setChecked(True)
+        self.ratio_group.addButton(self.r10)
+        self.ratio_group.addButton(self.r5)
+        ctrl.addWidget(self.r10)
+        ctrl.addWidget(self.r5)
+        ctrl.addStretch(1)
+        self.run_btn = QPushButton("요약 시작")
+        self.run_btn.setObjectName("success")
+        self.run_btn.clicked.connect(self._start)
+        self.stop_btn = QPushButton("중지")
+        self.stop_btn.setEnabled(False)
+        self.stop_btn.clicked.connect(self._stop)
+        ctrl.addWidget(self.run_btn)
+        ctrl.addWidget(self.stop_btn)
+        root.addLayout(ctrl)
+
+        # --- 진행률 + 상태
+        self.progress = QProgressBar()
+        self.progress.hide()
+        root.addWidget(self.progress)
+        self.status = QLabel("텍스트 복사가 가능한 PDF 를 선택하고 요약 분량을 고른 뒤 [요약 시작]을 누르세요.")
+        self.status.setObjectName("muted")
+        self.status.setWordWrap(True)
+        root.addWidget(self.status)
+
+        # --- 결과
+        self.result = QTextEdit()
+        self.result.setReadOnly(True)
+        self.result.setPlaceholderText("요약 결과가 여기에 표시됩니다.")
+        root.addWidget(self.result, 1)
+
+        out_row = QHBoxLayout()
+        out_row.addStretch(1)
+        self.copy_btn = QPushButton("복사")
+        self.save_btn = QPushButton("저장")
+        self.copy_btn.clicked.connect(self._copy)
+        self.save_btn.clicked.connect(self._save)
+        self.copy_btn.setEnabled(False)
+        self.save_btn.setEnabled(False)
+        out_row.addWidget(self.copy_btn)
+        out_row.addWidget(self.save_btn)
+        root.addLayout(out_row)
+
+    # ------------------------------------------------------------------ 파일
+    def _pick_file(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(self, "요약할 문서 선택", "", _FILE_FILTER)
+        if path:
+            self._path = path
+            self.file_label.setText(os.path.basename(path))
+
+    def _ratio(self) -> float:
+        return RATIOS["10%"] if self.r10.isChecked() else RATIOS["5%"]
+
+    # ------------------------------------------------------------------ 실행/중지
+    def _start(self) -> None:
+        if self._worker is not None:
+            return
+        if not self._path:
+            QMessageBox.information(self, "안내", "먼저 요약할 PDF 를 선택하세요.")
+            return
+
+        self.result.clear()
+        self._pending.clear()
+        self._flush_timer.start()
+        self._set_running(True)
+        self.progress.show()
+        self.progress.setRange(0, 0)  # 준비 단계: 불확정
+        self.status.setText("문서에서 텍스트 추출 중...")
+
+        opts = ChatOptions(temperature=0.3).to_ollama_options()
+        worker = CancellableWorker(
+            summarize_task, self._path, self._ratio(), self._model_getter(), opts
+        )
+        worker.signals.message.connect(self.status.setText)
+        worker.signals.progress.connect(self._on_progress)
+        worker.signals.token.connect(self._on_token)
+        worker.signals.finished.connect(self._on_done)
+        worker.signals.cancelled.connect(self._on_cancelled)
+        worker.signals.error.connect(self._on_error)
+        self._worker = worker
+        general_pool().start(worker)
+
+    def _stop(self) -> None:
+        if self._worker is not None:
+            self._worker.cancel()
+            self.status.setText("중지하는 중...")
+
+    def _set_running(self, on: bool) -> None:
+        self.run_btn.setEnabled(not on)
+        self.pick_btn.setEnabled(not on)
+        self.r10.setEnabled(not on)
+        self.r5.setEnabled(not on)
+        self.stop_btn.setEnabled(on)
+        if on:
+            self.copy_btn.setEnabled(False)
+            self.save_btn.setEnabled(False)
+
+    # ------------------------------------------------------------------ 스트리밍
+    def _on_progress(self, prog: dict) -> None:
+        total = prog.get("total")
+        completed = prog.get("completed")
+        if total:
+            self.progress.setRange(0, total)
+            self.progress.setValue(completed or 0)
+
+    def _on_token(self, delta: str) -> None:
+        self._pending.append(delta)
+
+    def _flush_tokens(self) -> None:
+        if not self._pending:
+            return
+        chunk = "".join(self._pending)
+        self._pending.clear()
+        cur = self.result.textCursor()
+        cur.movePosition(QTextCursor.MoveOperation.End)
+        cur.insertText(chunk)
+        self.result.setTextCursor(cur)
+        self.result.ensureCursorVisible()
+
+    def _finish_common(self) -> None:
+        self._flush_tokens()
+        self._flush_timer.stop()
+        self.progress.hide()
+        self._set_running(False)
+        self._worker = None
+
+    def _on_done(self, result) -> None:
+        self._finish_common()
+        if not isinstance(result, dict):
+            return
+        summary = result.get("summary", "")
+        self.result.setPlainText(summary)  # 스트리밍 잔여를 정리된 최종본으로 대체
+        src = result.get("source_chars", 0)
+        out = len(summary)
+        pct = (out / src * 100) if src else 0
+        self.status.setText(f"완료 · 원문 {src:,}자 → 요약 {out:,}자 ({pct:.1f}%)")
+        self.copy_btn.setEnabled(bool(summary))
+        self.save_btn.setEnabled(bool(summary))
+
+    def _on_cancelled(self) -> None:
+        self._finish_common()
+        self.status.setText("중지됨.")
+        txt = self.result.toPlainText()
+        self.copy_btn.setEnabled(bool(txt))
+        self.save_btn.setEnabled(bool(txt))
+
+    def _on_error(self, err: str) -> None:
+        self._finish_common()
+        msg = err.splitlines()[-1] if err else ""
+        self.status.setText(f"⚠️ 오류: {msg}")
+        QMessageBox.warning(self, "요약 오류", msg or "요약 중 오류가 발생했습니다.")
+
+    # ------------------------------------------------------------------ 출력
+    def _copy(self) -> None:
+        QApplication.clipboard().setText(self.result.toPlainText())
+        self.copy_btn.setText("복사됨!")
+        QTimer.singleShot(1200, lambda: self.copy_btn.setText("복사"))
+
+    def _save(self) -> None:
+        default = "요약.md"
+        if self._path:
+            default = os.path.splitext(os.path.basename(self._path))[0] + "_요약.md"
+        path, _ = QFileDialog.getSaveFileName(
+            self, "요약 저장", default, "Markdown (*.md);;텍스트 (*.txt)"
+        )
+        if not path:
+            return
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(self.result.toPlainText())
+            QMessageBox.information(self, "완료", f"저장했습니다:\n{path}")
+        except OSError as e:
+            QMessageBox.warning(self, "오류", str(e))
+
+    # ------------------------------------------------------------------ 종료
+    def shutdown(self) -> None:
+        if self._worker is not None:
+            self._worker.cancel()

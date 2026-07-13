@@ -1,12 +1,10 @@
-"""입력 영역 — 텍스트 입력 + 전송/중지/재생성 + 이미지 첨부."""
+"""입력 영역 — 텍스트 입력 + 전송/중지/재생성."""
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import (
-    QFileDialog,
     QHBoxLayout,
-    QLabel,
     QPlainTextEdit,
     QPushButton,
     QVBoxLayout,
@@ -37,16 +35,10 @@ class Composer(QWidget):
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        self.images: list[str] = []
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(6)
-
-        self.image_label = QLabel("")
-        self.image_label.setObjectName("muted")
-        self.image_label.hide()
-        lay.addWidget(self.image_label)
 
         row = QHBoxLayout()
         self.input = InputBox()
@@ -70,32 +62,12 @@ class Composer(QWidget):
 
     def _on_submit(self) -> None:
         text = self.input.toPlainText().strip()
-        if not text and not self.images:
+        if not text:
             return
         self.send_requested.emit(text)
 
     def clear_input(self) -> None:
         self.input.clear()
-
-    def add_image(self) -> None:
-        paths, _ = QFileDialog.getOpenFileNames(
-            self, "이미지 선택", "", "이미지 (*.png *.jpg *.jpeg *.webp *.gif)"
-        )
-        if paths:
-            self.images.extend(paths)
-            self._refresh_images()
-
-    def clear_images(self) -> None:
-        self.images.clear()
-        self._refresh_images()
-
-    def _refresh_images(self) -> None:
-        if self.images:
-            names = ", ".join(p.rsplit("/", 1)[-1].rsplit("\\", 1)[-1] for p in self.images)
-            self.image_label.setText(f"📎 첨부 이미지 {len(self.images)}개: {names}")
-            self.image_label.show()
-        else:
-            self.image_label.hide()
 
     def set_generating(self, on: bool) -> None:
         self.send_btn.setEnabled(not on)
