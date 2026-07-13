@@ -72,11 +72,14 @@ class SummaryView(QWidget):
         self.r10.setChecked(True)
         self.ratio_group.addButton(self.r10)
         self.ratio_group.addButton(self.r5)
+        self.r10.toggled.connect(self._on_ratio_changed)
+        self.r5.toggled.connect(self._on_ratio_changed)
         ctrl.addWidget(self.r10)
         ctrl.addWidget(self.r5)
         ctrl.addStretch(1)
         self.run_btn = QPushButton("요약 시작")
         self.run_btn.setObjectName("success")
+        self.run_btn.setEnabled(False)   # 문서를 선택해야 활성화
         self.run_btn.clicked.connect(self._start)
         self.stop_btn = QPushButton("중지")
         self.stop_btn.setEnabled(False)
@@ -118,9 +121,20 @@ class SummaryView(QWidget):
         if path:
             self._path = path
             self.file_label.setText(os.path.basename(path))
+            # 새 문서 선택 = 새 요약. 이전 결과는 정리하고 [요약 시작]을 다시 활성화.
+            self.result.clear()
+            self.copy_btn.setEnabled(False)
+            self.save_btn.setEnabled(False)
+            self.run_btn.setEnabled(True)
+            self.status.setText("선택됨. 요약 분량을 고른 뒤 [요약 시작]을 누르세요.")
 
     def _ratio(self) -> float:
         return RATIOS["10%"] if self.r10.isChecked() else RATIOS["5%"]
+
+    def _on_ratio_changed(self, *_) -> None:
+        # 완료 후 분량(10%/5%)을 바꾸면 '새 요약'이 명확하므로 [요약 시작]을 다시 활성화
+        if self._worker is None and self._path:
+            self.run_btn.setEnabled(True)
 
     # ------------------------------------------------------------------ 실행/중지
     def _start(self) -> None:
@@ -157,12 +171,14 @@ class SummaryView(QWidget):
             self.status.setText("중지하는 중...")
 
     def _set_running(self, on: bool) -> None:
-        self.run_btn.setEnabled(not on)
+        # run_btn 은 여기서 다시 켜지 않는다(완료 후 오해 방지). 재활성화는
+        # 문서 재선택 / 분량 변경 / 취소·오류 시에만 한다.
         self.pick_btn.setEnabled(not on)
         self.r10.setEnabled(not on)
         self.r5.setEnabled(not on)
         self.stop_btn.setEnabled(on)
         if on:
+            self.run_btn.setEnabled(False)
             self.copy_btn.setEnabled(False)
             self.save_btn.setEnabled(False)
 
@@ -204,13 +220,19 @@ class SummaryView(QWidget):
         src = result.get("source_chars", 0)
         out = len(summary)
         pct = (out / src * 100) if src else 0
-        self.status.setText(f"완료 · 원문 {src:,}자 → 요약 {out:,}자 ({pct:.1f}%)")
+        # 완료 시 [요약 시작]은 비활성 유지(다시 누르면 처음부터 재요약이라 오해 소지).
+        # 다시 요약하려면 문서를 다시 선택하거나 분량을 바꾸면 활성화된다.
+        self.status.setText(
+            f"완료 · 원문 {src:,}자 → 요약 {out:,}자 ({pct:.1f}%)  "
+            "· 다시 요약하려면 문서를 다시 선택하거나 분량(10%/5%)을 바꾸세요."
+        )
         self.copy_btn.setEnabled(bool(summary))
         self.save_btn.setEnabled(bool(summary))
 
     def _on_cancelled(self) -> None:
         self._finish_common()
-        self.status.setText("중지됨.")
+        self.status.setText("중지됨. 다시 [요약 시작]을 누를 수 있습니다.")
+        self.run_btn.setEnabled(bool(self._path))
         txt = self.result.toPlainText()
         self.copy_btn.setEnabled(bool(txt))
         self.save_btn.setEnabled(bool(txt))
@@ -219,6 +241,7 @@ class SummaryView(QWidget):
         self._finish_common()
         msg = err.splitlines()[-1] if err else ""
         self.status.setText(f"⚠️ 오류: {msg}")
+        self.run_btn.setEnabled(bool(self._path))
         QMessageBox.warning(self, "요약 오류", msg or "요약 중 오류가 발생했습니다.")
 
     # ------------------------------------------------------------------ 출력
