@@ -31,7 +31,9 @@ from auto_gemma.ui.widgets.common import general_pool
 from auto_gemma.workers.base import CancellableWorker
 from auto_gemma.workers.tasks import summarize_task
 
-_FILE_FILTER = "문서 (*.pdf *.txt *.md);;PDF (*.pdf);;텍스트 (*.txt *.md)"
+_FILE_FILTER = (
+    "문서 (*.pdf *.docx *.txt *.md);;PDF (*.pdf);;Word (*.docx);;텍스트 (*.txt *.md)"
+)
 
 
 class SummaryView(QWidget):
@@ -53,7 +55,7 @@ class SummaryView(QWidget):
 
         # --- 파일 선택 줄
         file_row = QHBoxLayout()
-        self.pick_btn = QPushButton("PDF 선택")
+        self.pick_btn = QPushButton("문서 선택")
         self.pick_btn.clicked.connect(self._pick_file)
         self.file_label = QLabel("선택된 파일 없음")
         self.file_label.setObjectName("muted")
@@ -87,7 +89,7 @@ class SummaryView(QWidget):
         self.progress = QProgressBar()
         self.progress.hide()
         root.addWidget(self.progress)
-        self.status = QLabel("텍스트 복사가 가능한 PDF 를 선택하고 요약 분량을 고른 뒤 [요약 시작]을 누르세요.")
+        self.status = QLabel("텍스트 복사가 가능한 PDF·Word(docx)·txt·md 를 선택하고 요약 분량을 고른 뒤 [요약 시작]을 누르세요.")
         self.status.setObjectName("muted")
         self.status.setWordWrap(True)
         root.addWidget(self.status)
@@ -125,7 +127,7 @@ class SummaryView(QWidget):
         if self._worker is not None:
             return
         if not self._path:
-            QMessageBox.information(self, "안내", "먼저 요약할 PDF 를 선택하세요.")
+            QMessageBox.information(self, "안내", "먼저 요약할 문서(PDF·Word·txt·md)를 선택하세요.")
             return
 
         self.result.clear()
