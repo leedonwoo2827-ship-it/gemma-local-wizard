@@ -31,25 +31,52 @@ _LEVEL_PATTERNS = [
 ]
 _INDENT_UNIT = "   "  # 깊이 1단계당 공백 3칸
 
+# 모델이 프롬프트의 형식 설명을 그대로 베껴 출력하는 경우(프롬프트 누출)를 걸러낸다.
+# 우리 지시문에만 등장하는 고유 문구라 실제 요약 내용과 충돌할 위험이 낮다.
+_ECHO_MARKERS = (
+    "계층 기호",
+    "제목(구조)",
+    "내용(설명)",
+    "개조식 정리 노트",
+    "반괄호",
+)
+# 굵게/강조용 마크다운 기호(**, __) — 서식 없이 쓰기로 했으므로 제거한다.
+_EMPHASIS = re.compile(r"\*\*|__|\*(?=\S)|(?<=\S)\*")
+
+
+def _clean_line(line: str) -> str:
+    """마크다운 강조 기호를 제거하고 앞뒤 공백을 정리한다."""
+    return _EMPHASIS.sub("", line).strip()
+
 
 def _normalize_outline(text: str) -> str:
     """모델 출력의 계층 기호를 읽어 깊이에 맞는 들여쓰기를 다시 매긴다.
 
-    모델이 들여쓰기를 빠뜨리거나 들쭉날쭉해도 기호만 맞으면 계단식으로 정렬된다.
+    - 프롬프트 형식 설명을 베낀 줄(프롬프트 누출)은 제거한다.
+    - 마크다운 강조 기호(**)는 제거한다.
+    - 모델이 들여쓰기를 빠뜨리거나 들쭉날쭉해도 기호만 맞으면 계단식으로 정렬된다.
     """
     lines: list[str] = []
     for raw in text.split("\n"):
-        line = raw.strip()
+        line = _clean_line(raw)
         if not line:
             lines.append("")
             continue
+        if any(marker in line for marker in _ECHO_MARKERS):
+            continue  # 형식 설명 누출 줄 제거
         depth = 0
         for pattern, level in _LEVEL_PATTERNS:
             if pattern.match(line):
                 depth = level
                 break
         lines.append(_INDENT_UNIT * depth + line)
-    return "\n".join(lines)
+    # 누출 줄 제거로 생긴 연속 빈 줄을 하나로 압축
+    out: list[str] = []
+    for ln in lines:
+        if ln == "" and (not out or out[-1] == ""):
+            continue
+        out.append(ln)
+    return "\n".join(out).strip("\n")
 
 # 한 번에 모델에 넣을 구간 크기(문자). gemma3 기본 num_ctx(8192)에 여유를 둔다.
 MAP_CHUNK_CHARS = 8000
@@ -78,6 +105,7 @@ def _map_prompt(chunk: str, target_chars: int) -> str:
         "- 각 항목은 줄바꿈으로 구분하고, 굵게·별표(**) 같은 서식 기호는 쓰지 않는다.\n"
         "[규칙]\n"
         "- 원문과 같은 언어로 작성한다.\n"
+        "- 위 [계층 기호]·[형식]·[규칙] 설명 문구 자체는 출력에 절대 포함하지 마라. 오직 아래 문서 내용만 정리한다.\n"
         "- '정리:'·'요약:' 같은 머리말이나 인사말 없이 정리 본문만 출력한다.\n"
         "- 예시·중복·군더더기는 생략하고 핵심(정의·수치·주장·결론)만 남긴다.\n"
         f"- 전체 분량은 약 {target_chars}자 내외로 한다.\n\n"
