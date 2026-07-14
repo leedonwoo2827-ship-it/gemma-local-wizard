@@ -32,7 +32,8 @@ from auto_gemma.workers.base import CancellableWorker
 from auto_gemma.workers.tasks import summarize_task
 
 _FILE_FILTER = (
-    "문서 (*.pdf *.docx *.txt *.md);;PDF (*.pdf);;Word (*.docx);;텍스트 (*.txt *.md)"
+    "문서 (*.pdf *.docx *.hwpx *.txt *.md);;PDF (*.pdf);;Word (*.docx);;"
+    "한글 (*.hwpx);;텍스트 (*.txt *.md)"
 )
 
 
@@ -105,14 +106,16 @@ class SummaryView(QWidget):
 
         out_row = QHBoxLayout()
         out_row.addStretch(1)
+        self.docx_btn = QPushButton("DOCX")
         self.copy_btn = QPushButton("복사")
         self.save_btn = QPushButton("저장")
+        self.docx_btn.clicked.connect(self._save_docx)
         self.copy_btn.clicked.connect(self._copy)
         self.save_btn.clicked.connect(self._save)
-        self.copy_btn.setEnabled(False)
-        self.save_btn.setEnabled(False)
-        out_row.addWidget(self.copy_btn)
-        out_row.addWidget(self.save_btn)
+        self._out_buttons = [self.docx_btn, self.copy_btn, self.save_btn]
+        for b in self._out_buttons:
+            b.setEnabled(False)
+            out_row.addWidget(b)
         root.addLayout(out_row)
 
     # ------------------------------------------------------------------ 파일
@@ -123,8 +126,7 @@ class SummaryView(QWidget):
             self.file_label.setText(os.path.basename(path))
             # 새 문서 선택 = 새 요약. 이전 결과는 정리하고 [요약 시작]을 다시 활성화.
             self.result.clear()
-            self.copy_btn.setEnabled(False)
-            self.save_btn.setEnabled(False)
+            self._enable_outputs(False)
             self.run_btn.setEnabled(True)
             self.status.setText("선택됨. 요약 분량을 고른 뒤 [요약 시작]을 누르세요.")
 
@@ -179,8 +181,11 @@ class SummaryView(QWidget):
         self.stop_btn.setEnabled(on)
         if on:
             self.run_btn.setEnabled(False)
-            self.copy_btn.setEnabled(False)
-            self.save_btn.setEnabled(False)
+            self._enable_outputs(False)
+
+    def _enable_outputs(self, on: bool) -> None:
+        for b in self._out_buttons:
+            b.setEnabled(on)
 
     # ------------------------------------------------------------------ 스트리밍
     def _on_progress(self, prog: dict) -> None:
@@ -226,16 +231,13 @@ class SummaryView(QWidget):
             f"완료 · 원문 {src:,}자 → 요약 {out:,}자 ({pct:.1f}%)  "
             "· 다시 요약하려면 문서를 다시 선택하거나 분량(10%/5%)을 바꾸세요."
         )
-        self.copy_btn.setEnabled(bool(summary))
-        self.save_btn.setEnabled(bool(summary))
+        self._enable_outputs(bool(summary))
 
     def _on_cancelled(self) -> None:
         self._finish_common()
         self.status.setText("중지됨. 다시 [요약 시작]을 누를 수 있습니다.")
         self.run_btn.setEnabled(bool(self._path))
-        txt = self.result.toPlainText()
-        self.copy_btn.setEnabled(bool(txt))
-        self.save_btn.setEnabled(bool(txt))
+        self._enable_outputs(bool(self.result.toPlainText()))
 
     def _on_error(self, err: str) -> None:
         self._finish_common()
@@ -250,27 +252,42 @@ class SummaryView(QWidget):
         self.copy_btn.setText("복사됨!")
         QTimer.singleShot(1200, lambda: self.copy_btn.setText("복사"))
 
-    def _save(self) -> None:
-        default = "요약.docx"
+    def _default_name(self, ext: str) -> str:
         if self._path:
-            default = os.path.splitext(os.path.basename(self._path))[0] + "_요약.docx"
+            return os.path.splitext(os.path.basename(self._path))[0] + f"_요약{ext}"
+        return f"요약{ext}"
+
+    def _save_docx(self) -> None:
         path, _ = QFileDialog.getSaveFileName(
-            self, "요약 저장", default,
-            "Word (*.docx);;Markdown (*.md);;텍스트 (*.txt)",
+            self, "Word(.docx)로 저장", self._default_name(".docx"), "Word (*.docx)"
         )
         if not path:
             return
-        text = self.result.toPlainText()
+        if not path.lower().endswith(".docx"):
+            path += ".docx"
+        self._write_out(path, lambda: self._write_docx(path, self.result.toPlainText()))
+
+    def _save(self) -> None:
+        path, _ = QFileDialog.getSaveFileName(
+            self, "요약 저장", self._default_name(".md"),
+            "Markdown (*.md);;텍스트 (*.txt)",
+        )
+        if not path:
+            return
+        self._write_out(path, lambda: self._write_plain(path, self.result.toPlainText()))
+
+    @staticmethod
+    def _write_plain(path: str, text: str) -> None:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+
+    def _write_out(self, path: str, writer) -> None:
         try:
-            if path.lower().endswith(".docx"):
-                self._write_docx(path, text)
-            else:
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(text)
+            writer()
             QMessageBox.information(self, "완료", f"저장했습니다:\n{path}")
         except OSError as e:
             QMessageBox.warning(self, "오류", str(e))
-        except Exception as e:  # noqa: BLE001 — docx 저장 실패 등 사용자에게 안내
+        except Exception as e:  # noqa: BLE001 — 저장 실패를 사용자에게 안내
             QMessageBox.warning(self, "오류", f"저장 중 오류가 발생했습니다:\n{e}")
 
     @staticmethod

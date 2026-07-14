@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-SUPPORTED = {".txt", ".md", ".markdown", ".pdf", ".docx"}
+SUPPORTED = {".txt", ".md", ".markdown", ".pdf", ".docx", ".hwpx"}
 
 
 def load_text(path: str | Path) -> str:
@@ -15,6 +15,8 @@ def load_text(path: str | Path) -> str:
         return _load_pdf(p)
     if ext == ".docx":
         return _load_docx(p)
+    if ext == ".hwpx":
+        return _load_hwpx(p)
     raise ValueError(f"지원하지 않는 형식입니다: {ext}")
 
 
@@ -47,3 +49,43 @@ def _load_docx(p: Path) -> str:
 
     d = docx.Document(str(p))
     return "\n".join(para.text for para in d.paragraphs)
+
+
+def _load_hwpx(p: Path) -> str:
+    """신형 한글 문서(.hwpx)에서 본문 텍스트를 추출.
+
+    hwpx 는 ZIP 컨테이너이며 본문은 Contents/section*.xml(OWPML) 에 있다.
+    한글 프로그램 없이 표준 라이브러리로 문단(hp:p)·텍스트(hp:t) 단위로 읽는다.
+    """
+    import zipfile
+    from xml.etree import ElementTree as ET
+
+    def localname(tag: str) -> str:
+        return tag.rsplit("}", 1)[-1]  # 네임스페이스 접두사 제거
+
+    def walk(elem, out: list[str]) -> None:
+        tag = localname(elem.tag)
+        if tag == "p":            # 문단 시작 → 줄바꿈
+            out.append("\n")
+        if tag == "t" and elem.text:  # 실제 텍스트 조각
+            out.append(elem.text)
+        for child in elem:
+            walk(child, out)
+
+    parts: list[str] = []
+    with zipfile.ZipFile(str(p)) as z:
+        sections = sorted(
+            n for n in z.namelist()
+            if n.startswith("Contents/section") and n.endswith(".xml")
+        )
+        for name in sections:
+            try:
+                root = ET.fromstring(z.read(name))
+            except ET.ParseError:
+                continue
+            walk(root, parts)
+            parts.append("\n")  # 섹션 사이 여백
+    text = "".join(parts)
+    # 과도한 빈 줄 정리
+    lines = [ln.rstrip() for ln in text.split("\n")]
+    return "\n".join(lines).strip()
