@@ -26,7 +26,6 @@ python -m auto_gemma.main
 ## 문서 (docs/)
 - [설치 가이드](docs/installation.md) — 플랫폼별 상세 설치, 저장 위치 변경, 문제 해결
 - [기능 안내](docs/features.md) — 마법사·채팅 전체 기능, 모델 추천 기준, 데이터 저장 위치
-- [SQLD 워크플로우 시나리오](docs/workflow-sqld.md) — 스캔→전사→출제→요약→음성/슬라이드 실전 순서
 - [아키텍처](docs/architecture.md) — 프로젝트 구조, 플랫폼별 동작, 개발 메모
 
 ## 라이선스
