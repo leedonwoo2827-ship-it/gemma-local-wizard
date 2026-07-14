@@ -19,8 +19,8 @@ env/
 GemmaChat/
 auto_gemma/resources/OllamaSetup.exe
 
-# Large sample PDFs (exceed GitHub 100MB limit; kept locally as base material)
-_context/*.pdf
+# _context 폴더는 GitHub 에 올리지 않음(원본 PDF·비공개 문서 로컬 보관)
+_context/
 
 # OS / IDE
 .DS_Store
