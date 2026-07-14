@@ -19,13 +19,27 @@ def load_text(path: str | Path) -> str:
 
 
 def _load_pdf(p: Path) -> str:
+    return "\n\n".join(_load_pdf_pages(p))
+
+
+def _load_pdf_pages(p: Path) -> list[str]:
     from pypdf import PdfReader
 
     reader = PdfReader(str(p))
-    parts = []
-    for page in reader.pages:
-        parts.append(page.extract_text() or "")
-    return "\n\n".join(parts)
+    return [(page.extract_text() or "") for page in reader.pages]
+
+
+def load_pages(path: str | Path) -> list[str]:
+    """문서를 페이지 단위 텍스트 리스트로 반환.
+
+    PDF 는 실제 페이지별로 나뉜다. txt/md/docx 는 페이지 개념이 없어
+    전체를 한 요소짜리 리스트로 반환한다(→ 페이지 표기 생략됨).
+    """
+    p = Path(path)
+    ext = p.suffix.lower()
+    if ext == ".pdf":
+        return _load_pdf_pages(p)
+    return [load_text(p)]
 
 
 def _load_docx(p: Path) -> str:

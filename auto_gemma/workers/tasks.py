@@ -21,17 +21,18 @@ def summarize_task(path: str, ratio: float, model: str, options: dict | None = N
     """
     if signals:
         signals.message.emit("문서에서 텍스트 추출 중...")
-    text = loaders.load_text(path)
+    pages = loaders.load_pages(path)
     if cancel_event and cancel_event.is_set():
         return "cancelled"
 
     result = summarizer.summarize(
-        text, ratio, model, options,
+        pages, ratio, model, options,
         cancel_event=cancel_event, signals=signals,
     )
     if result == "cancelled":
         return "cancelled"
-    return {"summary": result, "source_chars": len(text.strip())}
+    source_chars = sum(len((p or "").strip()) for p in pages)
+    return {"summary": result, "source_chars": source_chars}
 
 
 # --------------------------------------------------------------------- 설치
