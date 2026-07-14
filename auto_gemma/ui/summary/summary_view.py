@@ -251,20 +251,44 @@ class SummaryView(QWidget):
         QTimer.singleShot(1200, lambda: self.copy_btn.setText("복사"))
 
     def _save(self) -> None:
-        default = "요약.md"
+        default = "요약.docx"
         if self._path:
-            default = os.path.splitext(os.path.basename(self._path))[0] + "_요약.md"
+            default = os.path.splitext(os.path.basename(self._path))[0] + "_요약.docx"
         path, _ = QFileDialog.getSaveFileName(
-            self, "요약 저장", default, "Markdown (*.md);;텍스트 (*.txt)"
+            self, "요약 저장", default,
+            "Word (*.docx);;Markdown (*.md);;텍스트 (*.txt)",
         )
         if not path:
             return
+        text = self.result.toPlainText()
         try:
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(self.result.toPlainText())
+            if path.lower().endswith(".docx"):
+                self._write_docx(path, text)
+            else:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(text)
             QMessageBox.information(self, "완료", f"저장했습니다:\n{path}")
         except OSError as e:
             QMessageBox.warning(self, "오류", str(e))
+        except Exception as e:  # noqa: BLE001 — docx 저장 실패 등 사용자에게 안내
+            QMessageBox.warning(self, "오류", f"저장 중 오류가 발생했습니다:\n{e}")
+
+    @staticmethod
+    def _write_docx(path: str, text: str) -> None:
+        """요약 텍스트를 Word(.docx)로 저장. 앞 공백 들여쓰기를 문단 들여쓰기로 반영."""
+        import docx
+        from docx.shared import Inches, Pt
+
+        doc = docx.Document()
+        for raw in text.split("\n"):
+            stripped = raw.lstrip(" ")
+            depth = (len(raw) - len(stripped)) // 3  # 요약기 들여쓰기 단위(공백 3칸)
+            para = doc.add_paragraph(stripped)
+            fmt = para.paragraph_format
+            if depth:
+                fmt.left_indent = Inches(0.25 * depth)
+            fmt.space_after = Pt(2)
+        doc.save(path)
 
     # ------------------------------------------------------------------ 종료
     def shutdown(self) -> None:
